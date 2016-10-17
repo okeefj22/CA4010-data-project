@@ -1,0 +1,1 @@
+boxplot(mat$G3[(mat$paid == "yes")], mat$G3[(mat$paid == "no")], por$G3[(por$paid == "yes")], por$G3[(por$paid == "no")], las=2, col=c("royalblue2", "palevioletred1", "royalblue2", "palevioletred1"), at=c(1,2, 4,5), names=c("Maths (yes)", "Maths (no)", "Por (yes)", "Por (no)"), ylab="Final Grade (0 - 20)")

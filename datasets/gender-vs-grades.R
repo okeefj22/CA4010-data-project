@@ -1,0 +1,1 @@
+boxplot(mat$G3[(mat$sex == "M")], mat$G3[(mat$sex == "F")], por$G3[(por$sex == "M")], por$G3[(por$sex == "F")], las=2, col=c("royalblue2", "palevioletred1", "royalblue    2", "palevioletred1"), at=c(1,2, 4,5), names=c("Maths (M)", "Maths (F)", "Por (M)", "Por (F)"), ylab="Final Grade (0 - 20)")
