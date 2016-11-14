@@ -5,7 +5,7 @@ import java.text.DecimalFormat;
 public class StudentPredictor{	
 	
 	Set dataset;
-	ArrayList<ArrayList<Double>> columns;	//needed to normalise values
+	ArrayList<ArrayList<Double>> columns;	//needed to normalise values & calculate weightings
 	static double [] euclideanWeighting;
 	static DecimalFormat df; //limits to 4 decimal places
 	
@@ -13,9 +13,11 @@ public class StudentPredictor{
 	public StudentPredictor(){
 		dataset = new HashSet<ArrayList<Double>>();
 		columns = new ArrayList<ArrayList<Double>>();
-		euclideanWeighting =  new double [] {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1}; //left at 1 for now until we do algoroithm
+		//euclideanWeighting =  new double [] {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1}; //left at 1 for now until we do algoroithm
+		//euclideanWeighting =  new double [] {2,2,2,1,2,3,4,4,3,3,1,2,1,3,4,2,3,2,2,1,4,3,1,2,2,2,4,3,1,4}; //my weightings - tried these weights that i just guessed - 60% accuracy, not as good as corellation
+		euclideanWeighting =  new double [30];
 		df = new DecimalFormat("#.####"); //limits decimals to 4 decimal places
-		for(int i = 0; i < 30; i++ ){ //this just instantiates the blank arraylists in columns so that readDataset works
+		for(int i = 0; i < 33; i++ ){ //this just instantiates the blank arraylists in columns so that readDataset works
 			ArrayList<Double> x = new ArrayList<Double>();
 			columns.add(x);
 		}
@@ -30,7 +32,7 @@ public class StudentPredictor{
                 ArrayList<Double> row = toDoubleArrayList(currentRow.split(",")); //splits string into string [] then into ArrayList<double>
 				dataset.add(row);
 				//add to columns
-				for(int i = 0; i < 30; i++){
+				for(int i = 0; i < 33; i++){ 
 					columns.get(i).add(row.get(i)); //e.g this will add the school attribute to the arrilist of all the school values for each row
 				}
             }
@@ -56,7 +58,7 @@ public class StudentPredictor{
 		//System.out.println(columns.get(29)); //print column 29 - all the absences 
 	}
 	
-	public void classifyDataset(){ //this will add a 24th attribute - classification, 1 = (0-6), 2 = (7-13), 3 = (14-20)
+	public void classifyDataset(){ //this will add a 34th attribute - classification, 1 = (0-6), 2 = (7-13), 3 = (14-20)
 		Iterator<ArrayList<Double>> iter4 = dataset.iterator();
 		while(iter4.hasNext()){ //loop through rows
 			ArrayList<Double> current = iter4.next(); //current row
@@ -69,6 +71,52 @@ public class StudentPredictor{
 				current.add(3.0);
 			//System.out.println(current.get(33));
 		}
+	}
+	
+	public void calculateWeightings(){
+		
+		for(int j = 0; j < 30; j++){ //for each of 30 values calculate corellation with final grade 
+			double sx = 0.0; //sum x
+			double sy = 0.0; //sum y
+			double sxx = 0.0; //sum x squared
+			double syy = 0.0; //sum y squared
+			double sxy = 0.0; //sum x * y
+			int n = columns.get(j).size();
+			
+			for(int i = 0; i < n; i++) {
+				double x = columns.get(j).get(i); //compares this attribute value
+				double y = columns.get(32).get(i); //with its corresponding final grade
+				sx += x;
+				sy += y;
+				sxx += (x * x);
+				syy += (y * y);
+				sxy += (x * y);
+			}
+			
+			double cov = sxy / n - sx * sy / n / n; //covariation
+			double sigmax = Math.sqrt(sxx / n -  sx * sx / n / n);  //standard error of x
+			double sigmay = Math.sqrt(syy / n -  sy * sy / n / n);  //standard error of y
+			double correl =  (cov / sigmax / sigmay); //corellation
+			euclideanWeighting[j] = correl;
+			//System.out.println("Column " + j + " correl: " + correl);
+		} //weightings now contains array of positve and negative correlations, we want absalute value because we want influece not direction, need all values to sum to 1
+		
+		double totalWeight = 0;
+		for(double x: euclideanWeighting){
+			totalWeight += (Math.abs(x)); //we want absalute value
+		}
+		//System.out.println(totalWeight);
+		
+		for(int i = 0; i < euclideanWeighting.length; i++){ //this will change it so all weights are positive and now sum to 1
+			euclideanWeighting[i] = Math.abs(euclideanWeighting[i]/totalWeight);
+		}
+		
+		/*
+		for(int i = 0; i < euclideanWeighting.length; i++){ 
+			System.out.println("column " + i + " weighting " + euclideanWeighting[i]);
+		}
+		*/
+		
 	}
 	
 	public void normaliseDataset(){ //all values in the range 0-1 to stop skewing by attributes such as age
@@ -91,7 +139,7 @@ public class StudentPredictor{
 	}
 	
 	private static double weightedEuclideanDistance(ArrayList<Double> a, ArrayList<Double> b){ 
-		int total = 0;
+		double total = 0;
 		for(int i = 0; i < 30; i++){
 			double difference = (a.get(i) - b.get(i));
 			total += (euclideanWeighting[i] * difference * difference);
@@ -107,7 +155,7 @@ public class StudentPredictor{
 		return result;
 	}
 	
-	public void PredictClassKNN(){ //train on first 200, run on second 195
+	public void predictClassKNN(){ //train on first 200, run on second 195
 		Set trainingSet = new HashSet<ArrayList<Double>>();
 		Set validationSet = new HashSet<ArrayList<Double>>();
 		Iterator<ArrayList<Double>> iter5 = dataset.iterator(); //splits into two sets
@@ -128,7 +176,9 @@ public class StudentPredictor{
 			Iterator<ArrayList<Double>> iter7 = trainingSet.iterator(); //calculate distance from this to each row in training set
 			while(iter7.hasNext()){
 				ArrayList<Double> trainRow = iter7.next();
+				//System.out.println(trainRow.get(33));
 				double dist = weightedEuclideanDistance(current, trainRow);
+				//System.out.println(dist);
 				distanceMap.put(dist, trainRow.get(33)); // index 33 holds clasification value
 			}
 
@@ -164,7 +214,7 @@ public class StudentPredictor{
 		double rightCount = 0;
 		int g = 0;
 		Iterator it = resultsMap.entrySet().iterator();
-		while (it.hasNext()) {
+		while (it.hasNext()){
 			Map.Entry prediction = (Map.Entry)it.next();
 			//System.out.println("Actual: " + ((ArrayList<Double>)prediction.getKey()).get(33) + " Predicted: " + prediction.getValue());
 			if((((ArrayList<Double>)prediction.getKey()).get(33)).equals(prediction.getValue()))				//if predicted class = real class
@@ -193,7 +243,8 @@ public class StudentPredictor{
 		z.readDataset();
 		z.normaliseDataset();
 		z.classifyDataset();
-		z.PredictClassKNN();
+		z.calculateWeightings();
+		z.predictClassKNN();
 		
 		//Iterator<ArrayList<Double>> iter2 = z.dataset.iterator();
 		//System.out.println(weightedEuclideanDistance(iter2.next(),iter2.next()));
