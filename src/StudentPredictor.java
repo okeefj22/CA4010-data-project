@@ -1,32 +1,32 @@
 import java.io.*;
 import java.util.*;
 import java.text.DecimalFormat;
+import java.util.concurrent.ThreadLocalRandom;
 
 public class StudentPredictor {
 	
-	private Set dataset;
+	private HashSet<ArrayList<Double>> dataset;
 	private ArrayList<ArrayList<Double>> columns;	// needed to normalise values & calculate weightings
 	private static double [] euclideanWeighting;
 	private static DecimalFormat df; // limits to 4 decimal places
 	
 	
-	public StudentPredictor() {
-		dataset = new HashSet<ArrayList<Double>>();
-		columns = new ArrayList<ArrayList<Double>>();
+	private StudentPredictor() {
+		dataset = new HashSet<>();
+		columns = new ArrayList<>();
 		// euclideanWeighting =  new double [] {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1}; // left at 1 for now until we do algoroithm
 		// euclideanWeighting =  new double [] {2,2,2,1,2,3,4,4,3,3,1,2,1,3,4,2,3,2,2,1,4,3,1,2,2,2,4,3,1,4}; // my weightings - tried these weights that i just guessed - 60% accuracy, not as good as corellation
 		euclideanWeighting =  new double [30];
 		df = new DecimalFormat("#.####"); // limits decimals to 4 decimal places
 		for (int i = 0; i < 33; i++ ) { // this just instantiates the blank arraylists in columns so that readDataset works
-			ArrayList<Double> x = new ArrayList<Double>();
+			ArrayList<Double> x = new ArrayList<>();
 			columns.add(x);
 		}
 	}
 	
-	public void readDataset(String path) {
-		String csvFile = path;
+	private void readDataset(String path) {
 		String currentRow = "";
-		try (BufferedReader br = new BufferedReader(new FileReader(csvFile))) {
+		try (BufferedReader br = new BufferedReader(new FileReader(path))) {
 			String headings = br.readLine(); // this takes the column headings out, the only non numeric values in file
 			while ((currentRow = br.readLine()) != null) {
 				ArrayList<Double> row = toDoubleArrayList(currentRow.split(",")); // splits string into string [] then into ArrayList<double>
@@ -39,26 +39,9 @@ public class StudentPredictor {
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
-		
-		// Print to test dataset read
-		/*
-		Iterator<ArrayList<Double>> iter3 = dataset.iterator();
-		int i = 0;
-		while (iter3.hasNext()) {
-			for (double x: iter3.next()) {
-				System.out.print(x + ",");
-			}
-			i++;
-			System.out.println("ROW-END");
-		}
-		System.out.println(i + " rows");
-		*/
-		
-		// print to test columns read
-		// System.out.println(columns.get(29)); // print column 29 - all the absences
 	}
-	
-	public void classifyDataset() { // this will add a 34th attribute - classification, 1 = (0-6), 2 = (7-13), 3 = (14-20)
+
+	private void classifyDataset() { // this will add a 34th attribute - classification, 1 = (0-6), 2 = (7-13), 3 = (14-20)
 		Iterator<ArrayList<Double>> iter4 = dataset.iterator();
 		while (iter4.hasNext()) { // loop through rows
 			ArrayList<Double> current = iter4.next(); // current row
@@ -73,7 +56,7 @@ public class StudentPredictor {
 		}
 	}
 	
-	public void calculateWeightings() {
+	private void calculateWeightings() {
 
 		for (int j = 0; j < 30; j++) { // for each of 30 values calculate corellation with final grade
 			double sx = 0.0; // sum x
@@ -110,16 +93,9 @@ public class StudentPredictor {
 		for (int i = 0; i < euclideanWeighting.length; i++) { // this will change it so all weights are positive and now sum to 1
 			euclideanWeighting[i] = Math.abs(euclideanWeighting[i]/totalWeight);
 		}
-		
-		/*
-		for (int i = 0; i < euclideanWeighting.length; i++) {
-			System.out.println("column " + i + " weighting " + euclideanWeighting[i]);
-		}
-		*/
-		
 	}
 	
-	public void normaliseDataset() { // all values in the range 0-1 to stop skewing by attributes such as age
+	private void normaliseDataset() { // all values in the range 0-1 to stop skewing by attributes such as age
 		double [] maxValues = new double [30];
 		double [] minValues = new double [30]; // these will hold max and min values for each column
 		for (int i = 0; i < 30; i++) {
@@ -148,26 +124,26 @@ public class StudentPredictor {
 	}
 	
 	private static ArrayList<Double> toDoubleArrayList(String [] values) {
-		ArrayList<Double> result = new ArrayList<Double>();
+		ArrayList<Double> result = new ArrayList<>();
 		for (String a: values) {
 			result.add(Double.parseDouble(a));
 		}
 		return result;
 	}
 	
-	public void predictClassKNN() { // train on first 200, run on second 195
-		Set trainingSet = new HashSet<ArrayList<Double>>();
-		Set validationSet = new HashSet<ArrayList<Double>>();
+	private void predictClassKNN() { // train on first 200, run on second 195
+		HashSet<ArrayList<Double>> trainingSet = new HashSet<>();
+		HashSet<ArrayList<Double>> validationSet = new HashSet<>();
 		Iterator<ArrayList<Double>> iter5 = dataset.iterator(); // splits into two sets
-		int i = 0;
+        int rnd;
 		while (iter5.hasNext()) { // loop through rows
-			if (i < 200)
+			rnd = ThreadLocalRandom.current().nextInt(1, 11);
+			if (rnd <= 5)
 				trainingSet.add(iter5.next()); // 200 rows
 			else
 				validationSet.add(iter5.next());// 195
-			i++;
 		}
-		HashMap<ArrayList<Double>,Double> resultsMap = new HashMap<ArrayList<Double>,Double>(); // this will hold 195 (row, predictedClass) prediction pairs.
+		HashMap<ArrayList<Double>,Double> resultsMap = new HashMap<>(); // this will hold 195 (row, predictedClass) prediction pairs.
 		
 		Iterator<ArrayList<Double>> iter6 = validationSet.iterator();
 		while (iter6.hasNext()) { // classify validation set one by one using knn and add to resultsMap
@@ -245,7 +221,10 @@ public class StudentPredictor {
 		z.classifyDataset();
 		z.calculateWeightings();
 		z.predictClassKNN();
-		
+        for (double d: z.euclideanWeighting) {
+            System.out.println(d);
+        }
+
 		// Iterator<ArrayList<Double>> iter2 = z.dataset.iterator();
 		// System.out.println(weightedEuclideanDistance(iter2.next(),iter2.next()));
 	}
